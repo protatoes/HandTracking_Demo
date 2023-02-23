@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/Users/shawn.mishra/opt/miniconda3/envs/fma/bin/python"
+    "python.pythonPath": "/Users/shawn.mishra/opt/miniconda3/envs/fma/bin/python",
+    "python.analysis.typeCheckingMode": "basic"
 }

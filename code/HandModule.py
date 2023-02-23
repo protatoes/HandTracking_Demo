@@ -7,7 +7,6 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk
 
-
 import json
 import os
 import tempfile  # pylint: disable=unused-import
