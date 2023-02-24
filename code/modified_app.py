@@ -1,8 +1,9 @@
-
+import time
 import sys
 
 import cv2
 import numpy as np
+import pandas as pd
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import *
 from PyQt6.QtCore import *
@@ -54,6 +55,19 @@ class MyWindow(QMainWindow):
         # create the video capture thread
         self.thread = VideoThread()
 
+        #Data Holder
+        self.hand_dict_res =  pd.DataFrame(columns=['handIndex',"hand_label",'timestamp','finger', 'x', 'y','z'])
+        self.record_data = False
+        self.starttime = 0
+        #instantiate mediapipe model
+        self.mpHands = mp.solutions.hands
+        self.hands = self.mpHands.Hands(static_image_mode = False,
+                                        max_num_hands = 2,
+                                        min_detection_confidence = 0.4,
+                                        min_tracking_confidence = 0.4, #tracking confidence will allow for the same hand to be tracked throughout
+                                        model_complexity = 1)
+        self.mpDraw = mp.solutions.drawing_utils
+
         # Button to start video
         self.ss_video = QPushButton(self)
         self.ss_video.setText('Start video')
@@ -86,6 +100,7 @@ class MyWindow(QMainWindow):
         self.ss_video.setText('Stop video')
         self.thread = VideoThread()
         self.thread.change_pixmap_signal.connect(self.update_image)
+        self.starttime = time.time()
 
         # start the thread
         self.thread.start()
@@ -113,7 +128,8 @@ class MyWindow(QMainWindow):
     def convert_cv_qt(self, cv_img):
         """Convert from an opencv image to QPixmap"""
 
-        cv_img = cv2.flip(cv_img, 1)        
+        cv_img = cv2.flip(cv_img, 1)
+        cv_img = self.hand_tracking(cv_img)      
         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
@@ -121,7 +137,44 @@ class MyWindow(QMainWindow):
         p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.AspectRatioMode.KeepAspectRatio)
         #p = convert_to_Qt_format.scaled(801, 801, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
+    
+    def hand_tracking(self,img):
+        #Instantiate handtracking model
+        img.flags.writeable = False
+        #convert image to RGB, mediapipe only takes rgb images
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        #get detection,tracking results 
+        results = self.hands.process(imgRGB)
+        img.flags.writeable = True
+        #check if a hand is detected
+        if results.multi_hand_landmarks:
+            #iterate over each hand and extract landmark information
+            for handLms in results.multi_hand_landmarks:
+                #get the hand_index and label
+                handIndex = results.multi_hand_landmarks.index(handLms)
+                hand_label = results.multi_handedness[handIndex].classification[0].label
+                #get finger index and finger landmarks per hand
+                time_c = time.time()
+                for id,lm in enumerate(handLms.landmark):
+                    #get image size to get the center of the landmarks in pixels
+                    h,w,c = img.shape
+                    cx,cy,cz = int(lm.x*w),int(lm.y*h),int(lm.z*w) 
+                    #get a particular landmark 
+                    if id == 8 or id == 12:
+                        cv2.circle(img, (cx,cy),15,(255,0,0),cv2.FILLED)
+                        row_dict = {"handIndex":handIndex,
+                            "hand_label" : hand_label,
+                            "timestamp": time_c - self.starttime,
+                            "finger": id,
+                            'x': cx,
+                            'y':cy,
+                            'z':cz}
+                        if self.record_data:
+                            self.hand_dict_res = self.hand_dict_res.append(row_dict, ignore_index=True)
 
+
+
+        return img
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
