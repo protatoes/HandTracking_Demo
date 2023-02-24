@@ -12,6 +12,11 @@ import mediapipe as mp
 class MainWindow(QWidget):
     def __init__(self):
         super(MainWindow,self).__init__()
+        
+        self.setWindowTitle('DBT Fine Motor Analysis Demo')
+
+
+
         #set the layout for the window
         self.VBL = QVBoxLayout()
         #Populate the layout with widgets
@@ -27,7 +32,7 @@ class MainWindow(QWidget):
         self.Worker1.ImageUpdate.connect(self.ImageUpdateSlot)
 
         #Cancel Button to stop videofeed
-        self.CancelBTN = QPushButton('Cancel')
+        self.CancelBTN = QPushButton('Stop Stream')
         self.CancelBTN.clicked.connect(self.CancelFeed)
         self.VBL.addWidget(self.CancelBTN)
 
@@ -45,16 +50,20 @@ class MainWindow(QWidget):
 class Worker1(QThread):
     #handle retrieving image from webcam
     ImageUpdate = pyqtSignal(QImage)
+    def __init__(self):
+        super().__init__()
+        self.ThreadActive = True
 
     #will be called when we call the .start argument for the QThread object
     def run(self):
+        # capture from webcam
         self.ThreadActive = True
-        capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(0)
         
         #This is the where we will run  the video and I guess do the processing
         #similar to the while loop in the TestBed notebook
         while self.ThreadActive:
-            ret, frame = capture.read()
+            ret, frame = self.capture.read()
             if ret: 
                 #convert to rgb format
                 img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -65,13 +74,13 @@ class Worker1(QThread):
                 #this will send a signal to the MainWindow of the app, 
                 # transmitting the data under Pic
                 self.ImageUpdate.emit(Pic)
-
-        capture.release()
+        # Shutdown capture system
+        self.capture.release()
 
 
     def stop(self):
         self.ThreadActive = False
-        self.quit()
+        # self.quit()
 
 
 
